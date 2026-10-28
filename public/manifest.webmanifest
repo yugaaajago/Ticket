@@ -1,0 +1,12 @@
+{
+  "name": "NOC Desk",
+  "short_name": "NOC Desk",
+  "description": "Tiket pribadi untuk melacak trouble di banyak site",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
