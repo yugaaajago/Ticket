@@ -38,3 +38,20 @@ create policy "tickets_own" on public.tickets
 drop policy if exists "notes_own" on public.ticket_notes;
 create policy "notes_own" on public.ticket_notes
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ============ Peran user (superadmin / user) ============
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  username text not null unique,
+  role text not null default 'user' check (role in ('superadmin', 'user')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+-- User hanya boleh MEMBACA profilnya sendiri. Tidak ada policy insert/update/delete
+-- untuk klien, jadi tidak ada yang bisa menaikkan perannya sendiri.
+-- Penambahan/penghapusan user dilakukan lewat api/admin-users.js (service role).
+drop policy if exists "profiles_read_own" on public.profiles;
+create policy "profiles_read_own" on public.profiles
+  for select using (auth.uid() = id);

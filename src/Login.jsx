@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { supabase } from './supabase.js'
+import { usernameToEmail } from './lib.js'
 
 export default function Login() {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [mode, setMode] = useState('masuk')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
 
@@ -12,15 +12,18 @@ export default function Login() {
     e.preventDefault()
     setBusy(true)
     setMsg('')
-    const fn =
-      mode === 'masuk'
-        ? supabase.auth.signInWithPassword({ email, password })
-        : supabase.auth.signUp({ email, password })
-    const { data, error } = await fn
+    const { error } = await supabase.auth.signInWithPassword({
+      email: usernameToEmail(username),
+      password,
+    })
     setBusy(false)
-    if (error) setMsg(error.message)
-    else if (mode === 'daftar' && !data.session)
-      setMsg('Akun dibuat. Cek email untuk konfirmasi, lalu masuk.')
+    if (error) {
+      setMsg(
+        /invalid login/i.test(error.message)
+          ? 'Username atau password salah.'
+          : error.message
+      )
+    }
   }
 
   return (
@@ -29,30 +32,31 @@ export default function Login() {
         <h1>NOC Desk</h1>
         <p className="muted">Tiket pribadi untuk trouble di semua site.</p>
         <label>
-          Email
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          Username
+          <input
+            required
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
         </label>
         <label>
           Password
           <input
             type="password"
             required
-            minLength={6}
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </label>
         {msg && <p className="error">{msg}</p>}
         <button className="primary" disabled={busy}>
-          {busy ? 'Tunggu…' : mode === 'masuk' ? 'Masuk' : 'Daftar'}
+          {busy ? 'Tunggu…' : 'Masuk'}
         </button>
-        <button
-          type="button"
-          className="link"
-          onClick={() => setMode(mode === 'masuk' ? 'daftar' : 'masuk')}
-        >
-          {mode === 'masuk' ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Masuk'}
-        </button>
+        <p className="muted">Belum punya akun? Minta superadmin untuk membuatkan.</p>
       </form>
     </div>
   )

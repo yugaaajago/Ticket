@@ -3,7 +3,7 @@ import { supabase } from './supabase.js'
 import { WAITING, dueState, sortTickets } from './lib.js'
 import TicketCard from './TicketCard.jsx'
 
-export default function Dashboard({ user }) {
+export default function Dashboard({ profile, onOpenAdmin }) {
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -92,9 +92,16 @@ export default function Dashboard({ user }) {
           <h1>NOC Desk</h1>
           <span className="muted">{open.length} tiket belum tuntas</span>
         </div>
-        <button className="link" onClick={() => supabase.auth.signOut()} title={user.email}>
-          Keluar
-        </button>
+        <div className="top-actions">
+          {profile.role === 'superadmin' && (
+            <button className="link" onClick={onOpenAdmin}>
+              Kelola user
+            </button>
+          )}
+          <button className="link" onClick={() => supabase.auth.signOut()} title={profile.username}>
+            Keluar ({profile.username})
+          </button>
+        </div>
       </header>
 
       {(overdue > 0 || today > 0) && (

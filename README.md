@@ -5,19 +5,27 @@ Tiket pribadi untuk melacak trouble di banyak site. React + Vite, Supabase (logi
 ## 1. Supabase
 
 1. Buat proyek di https://supabase.com (gratis).
-2. Buka **SQL Editor**, tempel seluruh isi `supabase/schema.sql`, lalu **Run**.
-3. Buka **Project Settings → API**, salin **Project URL** dan **anon public key**.
-4. (Disarankan) Di **Authentication → Sign In / Providers → Email**, matikan *Confirm email* supaya bisa langsung masuk setelah daftar. Setelah akunmu dibuat, matikan juga *Allow new users to sign up* supaya tidak ada orang lain yang bisa mendaftar.
+2. **SQL Editor** → tempel seluruh isi `supabase/schema.sql` → **Run**.
+3. **Authentication → Sign In / Providers → Email**: matikan **Confirm email**, dan matikan **Allow new users to sign up** (user hanya dibuat oleh superadmin).
+4. **Authentication → Users → Add user → Create new user**:
+   - Email: `yugaachi@nocdesk.app`
+   - Password: isi sendiri langsung di sini (jangan ditulis di kode atau chat)
+   - Centang **Auto Confirm User**
+   - Jika ada akun lama (mis. Gmail yang belum terkonfirmasi), hapus saja.
+5. **SQL Editor** → jalankan isi `supabase/bootstrap_superadmin.sql` (menjadikan Yugaachi superadmin).
+6. **Project Settings → API**: salin **Project URL**, **anon public key**, dan **service_role key**.
+
+> Login memakai **username** (bukan email). Aplikasi mengubah `yugaachi` menjadi `yugaachi@nocdesk.app` di belakang layar.
 
 ## 2. Jalankan lokal
 
 ```bash
-cp .env.example .env     # isi URL dan anon key dari langkah 1
+cp .env.example .env     # isi URL dan anon key
 npm install
 npm run dev
 ```
 
-Buka alamat yang tampil (biasanya http://localhost:5173), klik **Daftar**, lalu masuk.
+Halaman tiket bisa dites lokal. Halaman **Kelola User** memakai `api/admin-users.js` yang baru jalan di Vercel (atau lewat `npx vercel dev`).
 
 ## 3. GitHub
 
@@ -36,7 +44,7 @@ File `.env` sudah masuk `.gitignore`, jadi kunci tidak ikut ter-upload.
 
 1. Di https://vercel.com pilih **Add New → Project**, impor repo `noc-desk`.
 2. Framework otomatis terdeteksi sebagai Vite.
-3. Di **Environment Variables** isi `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY`.
+3. Di **Environment Variables** isi `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, dan `SUPABASE_SERVICE_ROLE_KEY` (service_role key, **rahasia**: jangan pakai awalan `VITE_` dan jangan di-commit).
 4. **Deploy**. Buka alamatnya di HP, lalu pilih *Add to Home Screen* agar muncul seperti aplikasi.
 
 ## Cara kerja singkat
@@ -44,7 +52,8 @@ File `.env` sudah masuk `.gitignore`, jadi kunci tidak ikut ter-upload.
 - Tambah tiket cepat: judul + site saja. Detail (status, prioritas, menunggu siapa, follow-up, catatan) dibuka dengan mengetuk tiket.
 - Urutan daftar: lewat jadwal follow-up → follow-up hari ini → sisanya (urgent dulu). Tiket selesai disembunyikan kecuali dicentang.
 - Banner di atas menghitung tiket yang lewat jadwal dan yang jatuh tempo hari ini.
-- Keamanan data memakai Row Level Security: setiap akun hanya bisa membaca dan mengubah tiketnya sendiri.
+- Superadmin membuka **Kelola user** untuk menambah user, mengganti password, atau menghapus user.
+- Tiap user hanya melihat tiketnya sendiri (Row Level Security). Superadmin pun tidak melihat tiket user lain.
 
 ## Belum ada (rencana berikutnya)
 

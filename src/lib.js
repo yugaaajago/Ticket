@@ -67,3 +67,6 @@ export function fmtDateTime(iso) {
     minute: '2-digit',
   })
 }
+
+export const USER_DOMAIN = 'nocdesk.app'
+export const usernameToEmail = (u) => `${u.trim().toLowerCase()}@${USER_DOMAIN}`

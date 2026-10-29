@@ -203,3 +203,13 @@ button.link.small { padding: 0 6px; color: var(--muted); font-size: 1.1rem; }
   .filters { grid-template-columns: 1fr 1fr; }
   .filters input { grid-column: 1 / -1; }
 }
+
+.ok { color: var(--ok); font-size: 0.9rem; margin: 6px 0; }
+.admin-form { grid-template-columns: 1fr 1fr auto; margin-bottom: 12px; }
+.user-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; }
+.user-row .actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 560px) {
+  .admin-form { grid-template-columns: 1fr 1fr; }
+  .admin-form button { grid-column: 1 / -1; }
+}
+.top-actions { display: flex; gap: 2px; flex-wrap: wrap; justify-content: flex-end; }
