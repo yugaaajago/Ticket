@@ -1,17 +1,22 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
+import RfoModal from './RfoModal.jsx'
 import {
+  HANDLERS,
   PRIORITIES,
   STATUSES,
-  WAITING,
   dueState,
   fmtDate,
   fmtDateTime,
+  fmtDuration,
+  fromLocalInput,
   statusLabel,
+  toLocalInput,
 } from './lib.js'
 
-export default function TicketCard({ ticket: t, onUpdate, onDelete }) {
+export default function TicketCard({ ticket: t, history, onUpdate, onDelete }) {
   const [open, setOpen] = useState(false)
+  const [rfo, setRfo] = useState(false)
   const [notes, setNotes] = useState([])
   const [note, setNote] = useState('')
   const [err, setErr] = useState('')
@@ -53,9 +58,15 @@ export default function TicketCard({ ticket: t, onUpdate, onDelete }) {
     if (window.confirm(`Hapus tiket "${t.title}"? Catatannya ikut terhapus.`)) onDelete(t.id)
   }
 
-  const waiting = t.waiting_on
-    ? `Menunggu ${t.waiting_on}${t.waiting_name ? ` (${t.waiting_name})` : ''}`
+  const text = (field) => ({
+    defaultValue: t[field],
+    onBlur: (e) => e.target.value.trim() !== t[field] && onUpdate(t.id, { [field]: e.target.value.trim() }),
+  })
+
+  const handled = t.waiting_on
+    ? `${t.waiting_on}${t.waiting_name ? ` (${t.waiting_name})` : ''}`
     : ''
+  const duration = t.status === 'selesai' ? fmtDuration(t.incident_at, t.closed_at) : ''
 
   return (
     <li className={`ticket p-${t.priority} ${t.status === 'selesai' ? 'done' : ''} due-${due}`}>
@@ -67,8 +78,15 @@ export default function TicketCard({ ticket: t, onUpdate, onDelete }) {
         </div>
         <div className="title">{t.title}</div>
         <div className="meta">
-          {waiting && <span>{waiting}</span>}
-          {t.follow_up && t.status !== 'selesai' && (
+          {handled && <span>Ditangani {handled}</span>}
+          <span>{fmtDateTime(t.incident_at)}</span>
+          {history && t.closed_at && (
+            <span className="ok-text">
+              Pulih {fmtDateTime(t.closed_at)}
+              {duration && ` · ${duration}`}
+            </span>
+          )}
+          {!history && t.follow_up && (
             <span className={`due ${due}`}>
               {due === 'overdue' ? 'Lewat · ' : due === 'today' ? 'Hari ini · ' : 'Follow-up '}
               {fmtDate(t.follow_up)}
@@ -101,10 +119,10 @@ export default function TicketCard({ ticket: t, onUpdate, onDelete }) {
               </select>
             </label>
             <label>
-              Menunggu siapa
+              Ditangani oleh
               <select value={t.waiting_on} onChange={(e) => onUpdate(t.id, { waiting_on: e.target.value })}>
                 <option value="">—</option>
-                {WAITING.map((w) => (
+                {HANDLERS.map((w) => (
                   <option key={w}>{w}</option>
                 ))}
               </select>
@@ -112,22 +130,56 @@ export default function TicketCard({ ticket: t, onUpdate, onDelete }) {
             <label>
               Nama (opsional)
               <input
-                key={t.waiting_name}
+                key={`wn-${t.waiting_name}`}
                 defaultValue={t.waiting_name}
                 disabled={!t.waiting_on}
                 placeholder="mis. Pak Budi"
-                onBlur={(e) => e.target.value !== t.waiting_name && onUpdate(t.id, { waiting_name: e.target.value.trim() })}
+                onBlur={(e) => e.target.value.trim() !== t.waiting_name && onUpdate(t.id, { waiting_name: e.target.value.trim() })}
               />
             </label>
             <label>
-              Follow-up
+              Waktu kejadian
               <input
-                type="date"
-                value={t.follow_up ?? ''}
-                onChange={(e) => onUpdate(t.id, { follow_up: e.target.value || null })}
+                type="datetime-local"
+                value={toLocalInput(t.incident_at)}
+                onChange={(e) => e.target.value && onUpdate(t.id, { incident_at: fromLocalInput(e.target.value) })}
               />
             </label>
+            {t.status === 'selesai' ? (
+              <label>
+                Waktu pulih
+                <input
+                  type="datetime-local"
+                  value={toLocalInput(t.closed_at)}
+                  onChange={(e) => e.target.value && onUpdate(t.id, { closed_at: fromLocalInput(e.target.value) })}
+                />
+              </label>
+            ) : (
+              <label>
+                Follow-up
+                <input
+                  type="date"
+                  value={t.follow_up ?? ''}
+                  onChange={(e) => onUpdate(t.id, { follow_up: e.target.value || null })}
+                />
+              </label>
+            )}
           </div>
+
+          <div className="grid two">
+            <label>
+              Penyebab
+              <input key={`cause-${t.cause}`} {...text('cause')} placeholder="mis. kabel FO putus" />
+            </label>
+            <label>
+              Tindakan
+              <input key={`action-${t.action}`} {...text('action')} placeholder="mis. penyambungan ulang kabel" />
+            </label>
+          </div>
+
+          <button className="ghost rfo-btn" onClick={() => setRfo(true)}>
+            📋 Buat RFO WhatsApp
+          </button>
 
           <form className="note-form" onSubmit={addNote}>
             <input placeholder="Tambah catatan…" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -156,6 +208,8 @@ export default function TicketCard({ ticket: t, onUpdate, onDelete }) {
           </div>
         </div>
       )}
+
+      {rfo && <RfoModal ticket={t} onClose={() => setRfo(false)} />}
     </li>
   )
 }

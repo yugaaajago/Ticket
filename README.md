@@ -6,6 +6,7 @@ Tiket pribadi untuk melacak trouble di banyak site. React + Vite, Supabase (logi
 
 1. Buat proyek di https://supabase.com (gratis).
 2. **SQL Editor** → tempel seluruh isi `supabase/schema.sql` → **Run**.
+   - Kalau database sudah dibuat dari versi sebelumnya, cukup jalankan `supabase/migration_v2.sql` (aman diulang).
 3. **Authentication → Sign In / Providers → Email**: matikan **Confirm email**, dan matikan **Allow new users to sign up** (user hanya dibuat oleh superadmin).
 4. **Authentication → Users → Add user → Create new user**:
    - Email: `yugaachi@nocdesk.app`
@@ -49,11 +50,12 @@ File `.env` sudah masuk `.gitignore`, jadi kunci tidak ikut ter-upload.
 
 ## Cara kerja singkat
 
-- Tambah tiket cepat: judul + site saja. Detail (status, prioritas, menunggu siapa, follow-up, catatan) dibuka dengan mengetuk tiket.
-- Urutan daftar: lewat jadwal follow-up → follow-up hari ini → sisanya (urgent dulu). Tiket selesai disembunyikan kecuali dicentang.
-- Banner di atas menghitung tiket yang lewat jadwal dan yang jatuh tempo hari ini.
-- Superadmin membuka **Kelola user** untuk menambah user, mengganti password, atau menghapus user.
-- Tiap user hanya melihat tiketnya sendiri (Row Level Security). Superadmin pun tidak melihat tiket user lain.
+- **Tambah tiket**: isi case + site lalu Tambah. Klik "Atur waktu, penanganan, prioritas" untuk mengisi tanggal/jam kejadian, siapa yang menangani (Teknisi / Tim Metro / NOC / Pelanggan + nama), prioritas, dan follow-up.
+- **Tab Aktif**: urutan lewat jadwal follow-up → follow-up hari ini → sisanya (urgent dulu). Banner di atas menghitung yang terlewat.
+- **Tab Riwayat**: tiket berstatus Selesai, terbaru di atas, lengkap dengan waktu pulih dan durasi. Bisa dicari dan difilter per site.
+- **RFO WhatsApp**: buka tiket → isi *Penyebab* dan *Tindakan* → **Buat RFO WhatsApp** → pilih Pelanggan / Mitra / Sekolah → edit bila perlu → Salin atau Buka WhatsApp. Teks template ada di `src/rfo.js` (nama perusahaan di `COMPANY`).
+- Ikon di kanan atas: Kelola user (superadmin) dan Keluar.
+- Tiap user hanya melihat tiketnya sendiri (Row Level Security).
 
 ## Belum ada (rencana berikutnya)
 

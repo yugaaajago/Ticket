@@ -1,21 +1,39 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase.js'
-import { WAITING, dueState, sortTickets } from './lib.js'
+import { HANDLERS, PRIORITIES, dueState, fromLocalInput, sortTickets, toLocalInput } from './lib.js'
 import TicketCard from './TicketCard.jsx'
+
+const IconUsers = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" />
+    <path d="M16 5.2a3 3 0 0 1 0 5.6M18 14.2c1.8.7 3 2.3 3 4.8" />
+  </svg>
+)
+const IconLogout = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" />
+    <path d="M15 8l4 4-4 4M19 12H9" />
+  </svg>
+)
+
+const emptyDetail = { handler: '', handlerName: '', priority: 'normal', followUp: '', incidentAt: '' }
 
 export default function Dashboard({ profile, onOpenAdmin }) {
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [tab, setTab] = useState('aktif')
 
   const [title, setTitle] = useState('')
   const [site, setSite] = useState('')
+  const [detail, setDetail] = useState(emptyDetail)
+  const [showDetail, setShowDetail] = useState(false)
   const [adding, setAdding] = useState(false)
 
   const [fSite, setFSite] = useState('')
-  const [fWaiting, setFWaiting] = useState('')
+  const [fHandler, setFHandler] = useState('')
   const [q, setQ] = useState('')
-  const [showDone, setShowDone] = useState(false)
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -34,19 +52,29 @@ export default function Dashboard({ profile, onOpenAdmin }) {
     load()
   }, [load])
 
+  const setD = (k) => (e) => setDetail((d) => ({ ...d, [k]: e.target.value }))
+
   async function addTicket(e) {
     e.preventDefault()
     if (!title.trim() || !site.trim()) return
     setAdding(true)
-    const { data, error } = await supabase
-      .from('tickets')
-      .insert({ title: title.trim(), site: site.trim() })
-      .select()
-      .single()
+    const row = {
+      title: title.trim(),
+      site: site.trim(),
+      priority: detail.priority,
+      waiting_on: detail.handler,
+      waiting_name: detail.handler ? detail.handlerName.trim() : '',
+      follow_up: detail.followUp || null,
+      incident_at: fromLocalInput(detail.incidentAt) ?? new Date().toISOString(),
+    }
+    const { data, error } = await supabase.from('tickets').insert(row).select().single()
     setAdding(false)
     if (error) return setError(error.message)
     setTickets((t) => [data, ...t])
     setTitle('')
+    setDetail(emptyDetail)
+    setShowDetail(false)
+    setTab('aktif')
   }
 
   async function updateTicket(id, patch) {
@@ -70,36 +98,42 @@ export default function Dashboard({ profile, onOpenAdmin }) {
   )
 
   const open = tickets.filter((t) => t.status !== 'selesai')
+  const doneCount = tickets.length - open.length
   const overdue = open.filter((t) => dueState(t) === 'overdue').length
   const today = open.filter((t) => dueState(t) === 'today').length
+
+  const history = tab === 'riwayat'
 
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase()
     const list = tickets.filter((t) => {
-      if (!showDone && t.status === 'selesai') return false
+      if (history !== (t.status === 'selesai')) return false
       if (fSite && t.site !== fSite) return false
-      if (fWaiting && t.waiting_on !== fWaiting) return false
-      if (needle && !`${t.title} ${t.site} ${t.waiting_name}`.toLowerCase().includes(needle)) return false
+      if (fHandler && t.waiting_on !== fHandler) return false
+      if (needle && !`${t.title} ${t.site} ${t.waiting_name} ${t.cause} ${t.action}`.toLowerCase().includes(needle)) return false
       return true
     })
+    if (history) return list.sort((a, b) => (b.closed_at ?? '').localeCompare(a.closed_at ?? ''))
     return sortTickets(list)
-  }, [tickets, fSite, fWaiting, q, showDone])
+  }, [tickets, fSite, fHandler, q, history])
 
   return (
     <div className="app">
       <header className="top">
         <div>
           <h1>NOC Desk</h1>
-          <span className="muted">{open.length} tiket belum tuntas</span>
+          <span className="muted">
+            {open.length} tiket belum tuntas · masuk sebagai {profile.username}
+          </span>
         </div>
         <div className="top-actions">
           {profile.role === 'superadmin' && (
-            <button className="link" onClick={onOpenAdmin}>
-              Kelola user
+            <button className="icon-btn" onClick={onOpenAdmin} aria-label="Kelola user" title="Kelola user">
+              <IconUsers />
             </button>
           )}
-          <button className="link" onClick={() => supabase.auth.signOut()} title={profile.username}>
-            Keluar ({profile.username})
+          <button className="icon-btn" onClick={() => supabase.auth.signOut()} aria-label="Keluar" title="Keluar">
+            <IconLogout />
           </button>
         </div>
       </header>
@@ -112,48 +146,100 @@ export default function Dashboard({ profile, onOpenAdmin }) {
         </div>
       )}
 
-      <form className="quick" onSubmit={addTicket}>
-        <input
-          placeholder="Trouble apa? (judul singkat)"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-        />
-        <input
-          placeholder="Site"
-          list="site-list"
-          value={site}
-          onChange={(e) => setSite(e.target.value)}
-          required
-        />
-        <datalist id="site-list">
-          {sites.map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
-        <button className="primary" disabled={adding}>
-          Tambah
+      <div className="tabs" role="tablist">
+        <button role="tab" aria-selected={!history} className={!history ? 'on' : ''} onClick={() => setTab('aktif')}>
+          Aktif <span className="count">{open.length}</span>
         </button>
-      </form>
+        <button role="tab" aria-selected={history} className={history ? 'on' : ''} onClick={() => setTab('riwayat')}>
+          Riwayat <span className="count">{doneCount}</span>
+        </button>
+      </div>
+
+      {!history && (
+        <form className="card new-ticket" onSubmit={addTicket}>
+          <div className="quick">
+            <input
+              placeholder="Case / trouble apa?"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+            <input placeholder="Site" list="site-list" value={site} onChange={(e) => setSite(e.target.value)} required />
+            <button className="primary" disabled={adding}>
+              Tambah
+            </button>
+          </div>
+          <datalist id="site-list">
+            {sites.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+
+          <button type="button" className="link more" onClick={() => setShowDetail(!showDetail)} aria-expanded={showDetail}>
+            {showDetail ? '▾ Sembunyikan detail' : '▸ Atur waktu, penanganan, prioritas'}
+          </button>
+
+          {showDetail && (
+            <div className="grid">
+              <label>
+                Tanggal &amp; jam kejadian
+                <input
+                  type="datetime-local"
+                  value={detail.incidentAt || toLocalInput()}
+                  onChange={setD('incidentAt')}
+                />
+              </label>
+              <label>
+                Ditangani oleh
+                <select value={detail.handler} onChange={setD('handler')}>
+                  <option value="">—</option>
+                  {HANDLERS.map((h) => (
+                    <option key={h}>{h}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Nama (opsional)
+                <input
+                  placeholder="mis. Kevin"
+                  value={detail.handlerName}
+                  onChange={setD('handlerName')}
+                  disabled={!detail.handler}
+                />
+              </label>
+              <label>
+                Prioritas
+                <select value={detail.priority} onChange={setD('priority')}>
+                  {PRIORITIES.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Follow-up
+                <input type="date" value={detail.followUp} onChange={setD('followUp')} />
+              </label>
+            </div>
+          )}
+        </form>
+      )}
 
       <div className="filters">
         <input placeholder="Cari…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select value={fSite} onChange={(e) => setFSite(e.target.value)}>
+        <select value={fSite} onChange={(e) => setFSite(e.target.value)} aria-label="Filter site">
           <option value="">Semua site</option>
           {sites.map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
-        <select value={fWaiting} onChange={(e) => setFWaiting(e.target.value)}>
-          <option value="">Menunggu: semua</option>
-          {WAITING.map((w) => (
+        <select value={fHandler} onChange={(e) => setFHandler(e.target.value)} aria-label="Filter penanganan">
+          <option value="">Penanganan</option>
+          {HANDLERS.map((w) => (
             <option key={w}>{w}</option>
           ))}
         </select>
-        <label className="check">
-          <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
-          Tampilkan selesai
-        </label>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -161,12 +247,18 @@ export default function Dashboard({ profile, onOpenAdmin }) {
         <p className="muted">Memuat…</p>
       ) : visible.length === 0 ? (
         <p className="muted empty">
-          {tickets.length === 0 ? 'Belum ada tiket. Tambahkan trouble pertamamu di atas.' : 'Tidak ada tiket yang cocok.'}
+          {history
+            ? doneCount === 0
+              ? 'Belum ada tiket yang selesai.'
+              : 'Tidak ada tiket yang cocok.'
+            : tickets.length === 0
+              ? 'Belum ada tiket. Tambahkan trouble pertamamu di atas.'
+              : 'Tidak ada tiket yang cocok.'}
         </p>
       ) : (
         <ul className="list">
           {visible.map((t) => (
-            <TicketCard key={t.id} ticket={t} onUpdate={updateTicket} onDelete={deleteTicket} />
+            <TicketCard key={t.id} ticket={t} history={history} onUpdate={updateTicket} onDelete={deleteTicket} />
           ))}
         </ul>
       )}

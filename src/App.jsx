@@ -3,8 +3,9 @@ import { supabase, configured } from './supabase.js'
 import Login from './Login.jsx'
 import Dashboard from './Dashboard.jsx'
 import Admin from './Admin.jsx'
+import Background from './Background.jsx'
 
-export default function App() {
+function Screen() {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [ready, setReady] = useState(false)
@@ -88,4 +89,15 @@ export default function App() {
     return <Admin onBack={() => setView('tickets')} />
   }
   return <Dashboard profile={profile} onOpenAdmin={() => setView('admin')} />
+}
+
+export default function App() {
+  return (
+    <>
+      <Background />
+      <div className="layer">
+        <Screen />
+      </div>
+    </>
+  )
 }

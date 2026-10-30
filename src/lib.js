@@ -70,3 +70,40 @@ export function fmtDateTime(iso) {
 
 export const USER_DOMAIN = 'nocdesk.app'
 export const usernameToEmail = (u) => `${u.trim().toLowerCase()}@${USER_DOMAIN}`
+
+// Siapa yang menangani tiket
+export const HANDLERS = ['Teknisi', 'Tim Metro', 'NOC', 'Pelanggan']
+
+// Nilai untuk <input type="datetime-local"> (waktu lokal)
+export function toLocalInput(iso) {
+  const d = iso ? new Date(iso) : new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+export const fromLocalInput = (s) => (s ? new Date(s).toISOString() : null)
+
+export function fmtLong(iso) {
+  if (!iso) return ''
+  return (
+    new Date(iso).toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }) + ' WIB'
+  )
+}
+
+export function fmtDuration(startIso, endIso) {
+  if (!startIso || !endIso) return ''
+  const mins = Math.round((new Date(endIso) - new Date(startIso)) / 60000)
+  if (mins < 0) return ''
+  if (mins < 1) return 'kurang dari 1 menit'
+  const d = Math.floor(mins / 1440)
+  const h = Math.floor((mins % 1440) / 60)
+  const m = mins % 60
+  return [d && `${d} hari`, h && `${h} jam`, m && `${m} menit`].filter(Boolean).join(' ')
+}
